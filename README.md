@@ -44,7 +44,3 @@ Andre Rocha - @andrecorumba
 ## License
 
 This project is licensed under the MIT License.
-
----
-
-This README is a starting point for documenting your project. It's recommended to expand it by adding sections like 'Contributing', 'License', and 'Acknowledgments' to provide more context and information about the project's development and use.
