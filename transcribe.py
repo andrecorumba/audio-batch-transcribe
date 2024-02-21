@@ -2,6 +2,10 @@ import torch
 from transformers import AutoModelForSpeechSeq2Seq, AutoProcessor, pipeline
 from datasets import load_dataset
 
+import os
+
+import sqlite3
+
 
 device = "cuda:0" if torch.cuda.is_available() else "cpu"
 torch_dtype = torch.float16 if torch.cuda.is_available() else torch.float32
@@ -31,9 +35,50 @@ pipe = pipeline(
 # dataset = load_dataset("distil-whisper/librispeech_long", "clean", split="validation")
 # sample = dataset[0]["audio"]
 
-# Load opus file
-with open('data/AUD-20210407-WA0037.opus', 'rb') as f:
-    sample = f.read()
+# Load opus file in folder 
+folder = 'audios'
+#folder = '/mnt/d/audios'
+files = os.listdir(folder)
 
-    result = pipe(sample)
-    print(result["text"])
+# Conexão 
+print('iniciando ...')
+with sqlite3.connect('database/audios_transcriptions.db') as con:
+    cur = con.cursor()
+  
+    # Create table if not exists
+    cur.execute('''CREATE TABLE IF NOT EXISTS transcriptions
+                   (id INTEGER PRIMARY KEY, 
+                    file TEXT,
+                    text TEXT)'''
+                )
+    
+    # Create a table for errors
+    cur.execute('''CREATE TABLE IF NOT EXISTS errors
+                   (id INTEGER PRIMARY KEY, 
+                    file TEXT,
+                    error TEXT)'''
+                )
+
+    for i, file in enumerate(files):
+        if file.endswith('opus'):
+            with open(os.path.join(folder,file), 'rb') as f:
+                sample = f.read()
+                try:
+                    result = pipe(sample)
+                    print(f'file: {file} number: {i} from {len(files)}')    
+                    #print(result["text"])
+            
+                    # Insert into database
+                    cur.execute('INSERT INTO transcriptions (file, text) VALUES (?, ?)', (file, result["text"]))
+                    con.commit()
+                except Exception as e:
+                    print(f'Error: {e}')
+                    print(f'file: {file} number: {i} from {len(files)}')    
+                    # Insert into error database
+                    cur.execute('INSERT INTO errors (file, error) VALUES (?, ?)', (file, str(e)))
+
+print('concluído!')
+# Close connection
+# con.close()
+
+
